@@ -1,6 +1,6 @@
 
 # ---------- Stage 1: Build ----------
-    FROM maven:3.9.9-eclipse-temurin-21 AS builder
+    FROM eclipse-temurin AS builder
     WORKDIR /app
    
     # Copy pom and download dependencies first (for caching)
