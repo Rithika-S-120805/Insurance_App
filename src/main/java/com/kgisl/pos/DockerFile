@@ -1,0 +1,11 @@
+# Step 1: Use base image
+FROM openjdk:17-jdk-slim
+
+# Step 2: Set working directory
+WORKDIR /app
+
+# Step 3: Copy JAR file into container
+COPY target/*.jar app.jar
+
+# Step 4: Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
