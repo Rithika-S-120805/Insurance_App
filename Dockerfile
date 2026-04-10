@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-26
+FROM eclipse-temurin-26
 COPY . /app
 WORKDIR /app
 RUN mvn clean package
