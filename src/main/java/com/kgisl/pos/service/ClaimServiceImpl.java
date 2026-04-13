@@ -1,8 +1,8 @@
-package com.kgisl.pos.service.impl;
+package com.kgisl.pos.service;
 
 import com.kgisl.pos.entity.Claim;
 import com.kgisl.pos.repository.ClaimRepository;
-import com.kgisl.pos.service.ClaimService;
+//  com.kgisl.pos.service.ClaimService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

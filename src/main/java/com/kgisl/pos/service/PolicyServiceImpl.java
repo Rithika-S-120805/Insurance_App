@@ -1,8 +1,8 @@
-package com.kgisl.pos.service.impl;
+package com.kgisl.pos.service;
 
 import com.kgisl.pos.entity.Policy;
 import com.kgisl.pos.repository.PolicyRepository;
-import com.kgisl.pos.service.PolicyService;
+// import com.kgisl.pos.service.PolicyService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
