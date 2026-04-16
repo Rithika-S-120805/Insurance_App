@@ -41,7 +41,14 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!-- MySQL Driver -->
 		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.33</version>
+		</dependency>
+
+		<dependency> 		
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 	    </dependency>
@@ -80,9 +87,9 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.14.1</version>
 				<configuration>
-					<source>26</source>
-					<target>26</target>
-					<release>26</release>
+					<source>21</source>
+					<target>21</target>
+					<release>21</release>
 				</configuration>
 			</plugin>
 			<plugin>

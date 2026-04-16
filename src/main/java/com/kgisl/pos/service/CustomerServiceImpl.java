@@ -37,6 +37,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setName(customerDetails.getName());
         customer.setEmail(customerDetails.getEmail());
         customer.setStatus(customerDetails.getStatus());
+        customer.setPassword(customerDetails.getPassword());
 
         return repository.save(customer);
     }
@@ -44,5 +45,10 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public void deleteCustomer(Long id) {
         repository.deleteById(id);
+    }
+
+    @Override
+    public Customer login(String email, String password) {
+        return repository.findByEmailAndPassword(email, password);
     }
 }
