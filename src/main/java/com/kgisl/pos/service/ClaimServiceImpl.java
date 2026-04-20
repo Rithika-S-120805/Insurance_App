@@ -1,8 +1,11 @@
 package com.kgisl.pos.service;
 
 import com.kgisl.pos.entity.Claim;
+import com.kgisl.pos.entity.Customer;
+import com.kgisl.pos.entity.Policy;
 import com.kgisl.pos.repository.ClaimRepository;
-//  com.kgisl.pos.service.ClaimService;
+import com.kgisl.pos.repository.CustomerRepository;
+import com.kgisl.pos.repository.PolicyRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,9 +18,29 @@ public class ClaimServiceImpl implements ClaimService {
 
     @Autowired
     private ClaimRepository repository;
+    
+    @Autowired
+    private CustomerRepository customerRepository;
+    
+    @Autowired
+    private PolicyRepository policyRepository;
 
     @Override
     public Claim saveClaim(Claim claim) {
+        // Load the actual Customer entity from database
+        if (claim.getClaimant() != null && claim.getClaimant().getId() != null) {
+            Customer customer = customerRepository.findById(claim.getClaimant().getId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + claim.getClaimant().getId()));
+            claim.setClaimant(customer);
+        }
+        
+        // Load the actual Policy entity from database
+        if (claim.getPolicy() != null && claim.getPolicy().getPolicyId() != null) {
+            Policy policy = policyRepository.findById(claim.getPolicy().getPolicyId())
+                    .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claim.getPolicy().getPolicyId()));
+            claim.setPolicy(policy);
+        }
+        
         return repository.save(claim);
     }
 
@@ -36,8 +59,20 @@ public class ClaimServiceImpl implements ClaimService {
         Claim claim = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Claim not found with id: " + id));
 
-        claim.setPolicy(claimDetails.getPolicy());
-        claim.setClaimant(claimDetails.getClaimant());
+        // Load the actual Customer entity from database
+        if (claimDetails.getClaimant() != null && claimDetails.getClaimant().getId() != null) {
+            Customer customer = customerRepository.findById(claimDetails.getClaimant().getId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + claimDetails.getClaimant().getId()));
+            claim.setClaimant(customer);
+        }
+        
+        // Load the actual Policy entity from database
+        if (claimDetails.getPolicy() != null && claimDetails.getPolicy().getPolicyId() != null) {
+            Policy policy = policyRepository.findById(claimDetails.getPolicy().getPolicyId())
+                    .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claimDetails.getPolicy().getPolicyId()));
+            claim.setPolicy(policy);
+        }
+
         claim.setDateFiled(claimDetails.getDateFiled());
         claim.setClaimStatus(claimDetails.getClaimStatus());
         claim.setClaimAmount(claimDetails.getClaimAmount());

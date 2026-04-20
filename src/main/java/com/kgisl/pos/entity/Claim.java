@@ -2,6 +2,9 @@ package com.kgisl.pos.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "claims")
@@ -21,15 +24,40 @@ public class Claim {
     @JoinColumn(name = "customer_id")
     private Customer claimant;
 
+    @Column(name = "claim_number", unique = true, nullable = false)
+    private String claimNumber;
+
+    @Column(nullable = false)
     private LocalDate dateFiled;
 
+    @Column(nullable = false)
     private String claimStatus;
 
+    @Column(nullable = false)
     private Double claimAmount;
 
+    @Column(name = "approved_amount")
+    private Double approvedAmount;
+
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "documents")
     private String documents; // store file path / URL
+    
+    @Column(name = "approval_date")
+    private LocalDate approvalDate;
+    
+    @Column(name = "resolution_date")
+    private LocalDate resolutionDate;
+    
+    @CreationTimestamp
+    @Column(name = "created_date", nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+    
+    @UpdateTimestamp
+    @Column(name = "updated_date")
+    private LocalDateTime updatedDate;
 
     // Constructors
     public Claim() {}
@@ -58,4 +86,22 @@ public class Claim {
 
     public String getDocuments() { return documents; }
     public void setDocuments(String documents) { this.documents = documents; }
+    
+    public String getClaimNumber() { return claimNumber; }
+    public void setClaimNumber(String claimNumber) { this.claimNumber = claimNumber; }
+    
+    public Double getApprovedAmount() { return approvedAmount; }
+    public void setApprovedAmount(Double approvedAmount) { this.approvedAmount = approvedAmount; }
+    
+    public LocalDate getApprovalDate() { return approvalDate; }
+    public void setApprovalDate(LocalDate approvalDate) { this.approvalDate = approvalDate; }
+    
+    public LocalDate getResolutionDate() { return resolutionDate; }
+    public void setResolutionDate(LocalDate resolutionDate) { this.resolutionDate = resolutionDate; }
+    
+    public LocalDateTime getCreatedDate() { return createdDate; }
+    public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }
+    
+    public LocalDateTime getUpdatedDate() { return updatedDate; }
+    public void setUpdatedDate(LocalDateTime updatedDate) { this.updatedDate = updatedDate; }
 }
