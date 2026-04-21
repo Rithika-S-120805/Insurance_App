@@ -38,13 +38,28 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    public ResponseEntity<?> getAllUsers() {
+        try {
+            List<User> users = userService.getAllUsers();
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error retrieving users: " + e.getMessage());
+        }
     }
 
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userService.createUser(user);
+    public ResponseEntity<?> createUser(@RequestBody User user) {
+        try {
+            User createdUser = userService.createUser(user);
+            return ResponseEntity.ok(createdUser);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("already exists")) {
+                return ResponseEntity.status(409).body("User with this email already exists");
+            }
+            return ResponseEntity.status(400).body("Invalid user data: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error creating user: " + e.getMessage());
+        }
     }
 
     @GetMapping("/{id}")

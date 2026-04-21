@@ -21,6 +21,14 @@ public class UserServiceImpl implements UserService {
         if (user.getRole() == null) {
             user.setRole(User.Role.CUSTOMER);
         }
+        // Validate password
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+            throw new RuntimeException("Password cannot be null or empty");
+        }
+        // Check if email already exists
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("User with email " + user.getEmail() + " already exists");
+        }
         return userRepository.save(user);
     }
 

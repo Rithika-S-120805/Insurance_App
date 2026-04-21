@@ -8,9 +8,9 @@ import java.util.List;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    @Query("SELECT p FROM Payment p LEFT JOIN FETCH p.policy LEFT JOIN FETCH p.claim LEFT JOIN FETCH p.customer LEFT JOIN FETCH p.user")
+    @Query("SELECT p FROM Payment p LEFT JOIN FETCH p.policy LEFT JOIN FETCH p.claim")
     List<Payment> findAllWithRelationships();
 
-    @Query("SELECT p FROM Payment p LEFT JOIN FETCH p.policy LEFT JOIN FETCH p.claim LEFT JOIN FETCH p.customer LEFT JOIN FETCH p.user WHERE p.paymentId = :id")
+    @Query("SELECT p FROM Payment p LEFT JOIN FETCH p.policy LEFT JOIN FETCH p.claim WHERE p.paymentId = :id")
     Payment findByIdWithRelationships(Long id);
 }

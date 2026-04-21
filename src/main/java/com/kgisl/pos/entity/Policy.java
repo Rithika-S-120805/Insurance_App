@@ -28,6 +28,15 @@ public class Policy {
     @Transient
     private Long user_id;
 
+    // Link to Agent (User)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "agent_id")
+    private User agent;
+    
+    // Transient field for deserializing agent_id from JSON
+    @Transient
+    private Long agent_id;
+
     @Column(nullable = false)
     private String coverageType;
     
@@ -86,6 +95,14 @@ public class Policy {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public User getAgent() {
+        return agent;
+    }
+
+    public void setAgent(User agent) {
+        this.agent = agent;
     }
 
     public String getCoverageType() {
@@ -181,5 +198,20 @@ public class Policy {
     @JsonProperty("user_id")
     public void setUser_id(Long user_id) {
         this.user_id = user_id;
+    }
+    
+    // For serialization and deserialization of agent_id
+    @JsonProperty("agent_id")
+    public Long getAgent_id() {
+        // Return agent_id from the User relationship if it exists, otherwise return the transient field
+        if (agent != null && agent.getUserId() != null) {
+            return agent.getUserId();
+        }
+        return agent_id;
+    }
+    
+    @JsonProperty("agent_id")
+    public void setAgent_id(Long agent_id) {
+        this.agent_id = agent_id;
     }
 }

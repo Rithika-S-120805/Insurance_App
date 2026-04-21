@@ -35,12 +35,26 @@ public class PolicyServiceImpl implements PolicyService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + policy.getUser().getUserId()));
             policy.setUser(user);
         }
+        
+        // Handle agent_id from transient field (from JSON input)
+        if (policy.getAgent_id() != null && policy.getAgent_id() > 0) {
+            User agent = userRepository.findById(policy.getAgent_id())
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found with ID: " + policy.getAgent_id()));
+            policy.setAgent(agent);
+        }
+        // If policy has an agent object (from nested JSON), verify it exists
+        else if (policy.getAgent() != null && policy.getAgent().getUserId() != null) {
+            User agent = userRepository.findById(policy.getAgent().getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found with ID: " + policy.getAgent().getUserId()));
+            policy.setAgent(agent);
+        }
+        
         return repository.save(policy);
     }
 
     @Override
     public List<Policy> getAllPolicies() {
-        return repository.findAll();
+        return repository.findAllWithRelationships();
     }
 
     @Override
@@ -65,6 +79,19 @@ public class PolicyServiceImpl implements PolicyService {
             User user = userRepository.findById(policyDetails.getUser().getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + policyDetails.getUser().getUserId()));
             policy.setUser(user);
+        }
+        
+        // Handle agent_id from transient field (from JSON input)
+        if (policyDetails.getAgent_id() != null && policyDetails.getAgent_id() > 0) {
+            User agent = userRepository.findById(policyDetails.getAgent_id())
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found with ID: " + policyDetails.getAgent_id()));
+            policy.setAgent(agent);
+        }
+        // If policy has an agent object (from nested JSON), verify it exists
+        else if (policyDetails.getAgent() != null && policyDetails.getAgent().getUserId() != null) {
+            User agent = userRepository.findById(policyDetails.getAgent().getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found with ID: " + policyDetails.getAgent().getUserId()));
+            policy.setAgent(agent);
         }
         
         policy.setCoverageType(policyDetails.getCoverageType());

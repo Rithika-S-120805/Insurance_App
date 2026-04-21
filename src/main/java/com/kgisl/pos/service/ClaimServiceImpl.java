@@ -2,8 +2,10 @@ package com.kgisl.pos.service;
 
 import com.kgisl.pos.entity.Claim;
 import com.kgisl.pos.entity.Policy;
+import com.kgisl.pos.entity.User;
 import com.kgisl.pos.repository.ClaimRepository;
 import com.kgisl.pos.repository.PolicyRepository;
+import com.kgisl.pos.repository.UserRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,9 @@ public class ClaimServiceImpl implements ClaimService {
     
     @Autowired
     private PolicyRepository policyRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     public Claim saveClaim(Claim claim) {
@@ -54,12 +59,25 @@ public class ClaimServiceImpl implements ClaimService {
             throw new RuntimeException("Policy ID is required to create a claim");
         }
         
+        // Handle agent_id from transient field (from JSON input)
+        if (claim.getAgent_id() != null && claim.getAgent_id() > 0) {
+            User agent = userRepository.findById(claim.getAgent_id())
+                    .orElseThrow(() -> new RuntimeException("Agent not found with id: " + claim.getAgent_id()));
+            claim.setAgent(agent);
+        }
+        // If claim has an agent object (from nested JSON), verify it exists
+        else if (claim.getAgent() != null && claim.getAgent().getUserId() != null) {
+            User agent = userRepository.findById(claim.getAgent().getUserId())
+                    .orElseThrow(() -> new RuntimeException("Agent not found with id: " + claim.getAgent().getUserId()));
+            claim.setAgent(agent);
+        }
+        
         return repository.save(claim);
     }
 
     @Override
     public List<Claim> getAllClaims() {
-        return repository.findAll();
+        return repository.findAllWithRelationships();
     }
 
     @Override
@@ -83,6 +101,19 @@ public class ClaimServiceImpl implements ClaimService {
             Policy policy = policyRepository.findById(claimDetails.getPolicy().getPolicyId())
                     .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claimDetails.getPolicy().getPolicyId()));
             claim.setPolicy(policy);
+        }
+        
+        // Handle agent_id from transient field (from JSON input)
+        if (claimDetails.getAgent_id() != null && claimDetails.getAgent_id() > 0) {
+            User agent = userRepository.findById(claimDetails.getAgent_id())
+                    .orElseThrow(() -> new RuntimeException("Agent not found with id: " + claimDetails.getAgent_id()));
+            claim.setAgent(agent);
+        }
+        // If claim has an agent object (from nested JSON), verify it exists
+        else if (claimDetails.getAgent() != null && claimDetails.getAgent().getUserId() != null) {
+            User agent = userRepository.findById(claimDetails.getAgent().getUserId())
+                    .orElseThrow(() -> new RuntimeException("Agent not found with id: " + claimDetails.getAgent().getUserId()));
+            claim.setAgent(agent);
         }
 
         claim.setDateFiled(claimDetails.getDateFiled());
