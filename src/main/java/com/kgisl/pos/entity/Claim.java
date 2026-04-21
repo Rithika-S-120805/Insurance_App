@@ -1,6 +1,8 @@
 package com.kgisl.pos.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
@@ -18,11 +20,10 @@ public class Claim {
     @ManyToOne
     @JoinColumn(name = "policy_id")
     private Policy policy;
-
-    // Link to Customer (Claimant)
-    @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer claimant;
+    
+    // Transient field for deserializing policy_id from JSON
+    @Transient
+    private Long policy_id;
 
     @Column(name = "claim_number", unique = true, nullable = false)
     private String claimNumber;
@@ -69,9 +70,6 @@ public class Claim {
     public Policy getPolicy() { return policy; }
     public void setPolicy(Policy policy) { this.policy = policy; }
 
-    public Customer getClaimant() { return claimant; }
-    public void setClaimant(Customer claimant) { this.claimant = claimant; }
-
     public LocalDate getDateFiled() { return dateFiled; }
     public void setDateFiled(LocalDate dateFiled) { this.dateFiled = dateFiled; }
 
@@ -104,4 +102,19 @@ public class Claim {
     
     public LocalDateTime getUpdatedDate() { return updatedDate; }
     public void setUpdatedDate(LocalDateTime updatedDate) { this.updatedDate = updatedDate; }
+    
+    // For serialization and deserialization of policy_id
+    @JsonProperty("policy_id")
+    public Long getPolicy_id() {
+        // Return policy_id from the Policy relationship if it exists, otherwise return the transient field
+        if (policy != null && policy.getPolicyId() != null) {
+            return policy.getPolicyId();
+        }
+        return policy_id;
+    }
+    
+    @JsonProperty("policy_id")
+    public void setPolicy_id(Long policy_id) {
+        this.policy_id = policy_id;
+    }
 }

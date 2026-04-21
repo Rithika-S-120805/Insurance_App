@@ -1,6 +1,8 @@
 package com.kgisl.pos.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,10 +19,14 @@ public class Policy {
     @Column(unique = true, nullable = false)
     private String policyNumber;
 
-    // Link to Customer (Policy Holder)
-    @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer policyHolder;
+    // Link to User (Policy Holder)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    // Transient field for deserializing user_id from JSON
+    @Transient
+    private Long user_id;
 
     @Column(nullable = false)
     private String coverageType;
@@ -74,12 +80,12 @@ public class Policy {
         this.policyNumber = policyNumber;
     }
 
-    public Customer getPolicyHolder() {
-        return policyHolder;
+    public User getUser() {
+        return user;
     }
 
-    public void setPolicyHolder(Customer policyHolder) {
-        this.policyHolder = policyHolder;
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public String getCoverageType() {
@@ -160,5 +166,20 @@ public class Policy {
     
     public void setUpdatedDate(LocalDateTime updatedDate) {
         this.updatedDate = updatedDate;
+    }
+    
+    // For serialization and deserialization of user_id
+    @JsonProperty("user_id")
+    public Long getUser_id() {
+        // Return user_id from the User relationship if it exists, otherwise return the transient field
+        if (user != null && user.getUserId() != null) {
+            return user.getUserId();
+        }
+        return user_id;
+    }
+    
+    @JsonProperty("user_id")
+    public void setUser_id(Long user_id) {
+        this.user_id = user_id;
     }
 }

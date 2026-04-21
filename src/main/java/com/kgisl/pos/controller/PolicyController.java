@@ -19,13 +19,34 @@ public class PolicyController {
     // CREATE
     @PostMapping
     public Policy createPolicy(@RequestBody Policy policy) {
-        return service.savePolicy(policy);
+        try {
+            System.out.println("=== CREATE POLICY REQUEST ===");
+            System.out.println("Policy: " + policy);
+            System.out.println("User: " + policy.getUser());
+            System.out.println("User ID: " + (policy.getUser() != null ? policy.getUser().getUserId() : "NULL"));
+            Policy saved = service.savePolicy(policy);
+            System.out.println("Policy saved successfully with ID: " + saved.getPolicyId());
+            return saved;
+        } catch (Exception e) {
+            System.err.println("ERROR in createPolicy: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     // READ ALL
     @GetMapping
     public List<Policy> getAllPolicies() {
-        return service.getAllPolicies();
+        try {
+            System.out.println("=== GET ALL POLICIES REQUEST ===");
+            List<Policy> policies = service.getAllPolicies();
+            System.out.println("Total policies fetched: " + policies.size());
+            return policies;
+        } catch (Exception e) {
+            System.err.println("ERROR in getAllPolicies: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     // READ BY ID

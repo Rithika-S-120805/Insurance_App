@@ -1,10 +1,8 @@
 package com.kgisl.pos.service;
 
 import com.kgisl.pos.entity.Claim;
-import com.kgisl.pos.entity.Customer;
 import com.kgisl.pos.entity.Policy;
 import com.kgisl.pos.repository.ClaimRepository;
-import com.kgisl.pos.repository.CustomerRepository;
 import com.kgisl.pos.repository.PolicyRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,25 +18,40 @@ public class ClaimServiceImpl implements ClaimService {
     private ClaimRepository repository;
     
     @Autowired
-    private CustomerRepository customerRepository;
-    
-    @Autowired
     private PolicyRepository policyRepository;
 
     @Override
     public Claim saveClaim(Claim claim) {
-        // Load the actual Customer entity from database
-        if (claim.getClaimant() != null && claim.getClaimant().getId() != null) {
-            Customer customer = customerRepository.findById(claim.getClaimant().getId())
-                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + claim.getClaimant().getId()));
-            claim.setClaimant(customer);
+        // Generate claimNumber if not provided
+        if (claim.getClaimNumber() == null || claim.getClaimNumber().isEmpty()) {
+            // Generate claim number like CLM-2024-XXX
+            int year = java.time.LocalDate.now().getYear();
+            long count = repository.count() + 1; // Simple counter, but not thread-safe
+            claim.setClaimNumber(String.format("CLM-%d-%03d", year, count));
         }
-        
-        // Load the actual Policy entity from database
-        if (claim.getPolicy() != null && claim.getPolicy().getPolicyId() != null) {
+
+        // Set defaults
+        if (claim.getDateFiled() == null) {
+            claim.setDateFiled(java.time.LocalDate.now());
+        }
+        if (claim.getClaimStatus() == null || claim.getClaimStatus().isEmpty()) {
+            claim.setClaimStatus("PENDING");
+        }
+
+        // Handle policy_id from transient field (from JSON input)
+        if (claim.getPolicy_id() != null && claim.getPolicy_id() > 0) {
+            Policy policy = policyRepository.findById(claim.getPolicy_id())
+                    .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claim.getPolicy_id()));
+            claim.setPolicy(policy);
+        }
+        // If claim has a policy object (from nested JSON), verify it exists
+        else if (claim.getPolicy() != null && claim.getPolicy().getPolicyId() != null) {
             Policy policy = policyRepository.findById(claim.getPolicy().getPolicyId())
                     .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claim.getPolicy().getPolicyId()));
             claim.setPolicy(policy);
+        }
+        else {
+            throw new RuntimeException("Policy ID is required to create a claim");
         }
         
         return repository.save(claim);
@@ -59,15 +72,14 @@ public class ClaimServiceImpl implements ClaimService {
         Claim claim = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Claim not found with id: " + id));
 
-        // Load the actual Customer entity from database
-        if (claimDetails.getClaimant() != null && claimDetails.getClaimant().getId() != null) {
-            Customer customer = customerRepository.findById(claimDetails.getClaimant().getId())
-                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + claimDetails.getClaimant().getId()));
-            claim.setClaimant(customer);
+        // Handle policy_id from transient field (from JSON input)
+        if (claimDetails.getPolicy_id() != null && claimDetails.getPolicy_id() > 0) {
+            Policy policy = policyRepository.findById(claimDetails.getPolicy_id())
+                    .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claimDetails.getPolicy_id()));
+            claim.setPolicy(policy);
         }
-        
-        // Load the actual Policy entity from database
-        if (claimDetails.getPolicy() != null && claimDetails.getPolicy().getPolicyId() != null) {
+        // If claim has a policy object (from nested JSON), verify it exists
+        else if (claimDetails.getPolicy() != null && claimDetails.getPolicy().getPolicyId() != null) {
             Policy policy = policyRepository.findById(claimDetails.getPolicy().getPolicyId())
                     .orElseThrow(() -> new RuntimeException("Policy not found with id: " + claimDetails.getPolicy().getPolicyId()));
             claim.setPolicy(policy);

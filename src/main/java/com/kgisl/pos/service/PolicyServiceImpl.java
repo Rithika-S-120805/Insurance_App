@@ -1,7 +1,9 @@
 package com.kgisl.pos.service;
 
 import com.kgisl.pos.entity.Policy;
+import com.kgisl.pos.entity.User;
 import com.kgisl.pos.repository.PolicyRepository;
+import com.kgisl.pos.repository.UserRepository;
 // import com.kgisl.pos.service.PolicyService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +17,24 @@ public class PolicyServiceImpl implements PolicyService {
 
     @Autowired
     private PolicyRepository repository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     public Policy savePolicy(Policy policy) {
+        // Handle user_id from transient field (from JSON input)
+        if (policy.getUser_id() != null && policy.getUser_id() > 0) {
+            User user = userRepository.findById(policy.getUser_id())
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + policy.getUser_id()));
+            policy.setUser(user);
+        }
+        // If policy has a user object (from nested JSON), verify it exists
+        else if (policy.getUser() != null && policy.getUser().getUserId() != null) {
+            User user = userRepository.findById(policy.getUser().getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + policy.getUser().getUserId()));
+            policy.setUser(user);
+        }
         return repository.save(policy);
     }
 
@@ -36,12 +53,28 @@ public class PolicyServiceImpl implements PolicyService {
         Policy policy = repository.findById(id).orElseThrow();
 
         policy.setPolicyNumber(policyDetails.getPolicyNumber());
-        policy.setPolicyHolder(policyDetails.getPolicyHolder());
+        
+        // Handle user_id from transient field (from JSON input)
+        if (policyDetails.getUser_id() != null && policyDetails.getUser_id() > 0) {
+            User user = userRepository.findById(policyDetails.getUser_id())
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + policyDetails.getUser_id()));
+            policy.setUser(user);
+        }
+        // If policy has a user object (from nested JSON), verify it exists
+        else if (policyDetails.getUser() != null && policyDetails.getUser().getUserId() != null) {
+            User user = userRepository.findById(policyDetails.getUser().getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + policyDetails.getUser().getUserId()));
+            policy.setUser(user);
+        }
+        
         policy.setCoverageType(policyDetails.getCoverageType());
         policy.setPremiumAmount(policyDetails.getPremiumAmount());
+        policy.setPolicyType(policyDetails.getPolicyType());
         policy.setStartDate(policyDetails.getStartDate());
         policy.setEndDate(policyDetails.getEndDate());
         policy.setStatus(policyDetails.getStatus());
+        policy.setSumInsured(policyDetails.getSumInsured());
+        policy.setTermInMonths(policyDetails.getTermInMonths());
 
         return repository.save(policy);
     }
