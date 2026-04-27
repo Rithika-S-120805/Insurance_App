@@ -110,4 +110,14 @@ public class PolicyServiceImpl implements PolicyService {
     public void deletePolicy(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public List<Policy> getPoliciesByUserId(Long userId) {
+        return repository.findByUser_UserId(userId);
+    }
+
+    @Override
+    public List<Policy> getPoliciesByAgentId(Long agentId) {
+        return repository.findByAgent_UserId(agentId);
+    }
 }

@@ -1,7 +1,7 @@
--- Insert test user data
-INSERT INTO users (username, password, full_name, email, role) VALUES ('admin', 'admin123', 'Admin User', 'admin@example.com', 'ADMIN');
-INSERT INTO users (username, password, full_name, email, role) VALUES ('john_doe', 'password123', 'John Doe', 'john@example.com', 'CUSTOMER');
-INSERT INTO users (username, password, full_name, email, role) VALUES ('jane_smith', 'password456', 'Jane Smith', 'jane@example.com', 'AGENT');
+-- Insert test user data (passwords are BCrypt hashed)
+INSERT INTO users (username, password, full_name, email, role) VALUES ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin User', 'admin@example.com', 'ADMIN');
+INSERT INTO users (username, password, full_name, email, role) VALUES ('john_doe', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'John Doe', 'john@example.com', 'CUSTOMER');
+INSERT INTO users (username, password, full_name, email, role) VALUES ('jane_smith', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Jane Smith', 'jane@example.com', 'AGENT');
 
 -- Insert test customer data
 INSERT INTO customers (name, email, status, password, phone_number, address, date_of_birth, policy_count) VALUES ('John Doe', 'john@example.com', 'ACTIVE', 'password123', '9123456780', '123 Main St, City', '1990-05-15', 1);

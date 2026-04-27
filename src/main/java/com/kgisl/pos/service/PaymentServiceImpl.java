@@ -114,4 +114,14 @@ public class PaymentServiceImpl implements PaymentService {
     public void deletePayment(Long id) {
         paymentRepository.deleteById(id);
     }
+
+    @Override
+    public List<Payment> getPaymentsByCustomerId(Long customerId) {
+        return paymentRepository.findByPolicy_User_UserId(customerId);
+    }
+
+    @Override
+    public List<Payment> getPaymentsByAgentId(Long agentId) {
+        return paymentRepository.findByPolicy_Agent_UserId(agentId);
+    }
 }

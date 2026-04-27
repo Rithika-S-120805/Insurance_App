@@ -16,4 +16,8 @@ public interface PolicyService {
     Policy updatePolicy(Long id, Policy policy);
 
     void deletePolicy(Long id);
+
+    List<Policy> getPoliciesByUserId(Long userId);
+
+    List<Policy> getPoliciesByAgentId(Long agentId);
 }

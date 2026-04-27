@@ -9,6 +9,7 @@ public class LoginResponse {
     private String email;
     private String fullName;
     private String role;
+    private Long agentId;
     private String message;
     private Boolean success;
 
@@ -18,6 +19,7 @@ public class LoginResponse {
         this.email = user.getEmail();
         this.fullName = user.getFullName();
         this.role = user.getRole() != null ? user.getRole().toString() : null;
+        this.agentId = user.getAgentId();
         this.message = message;
         this.success = success;
     }
@@ -35,4 +37,5 @@ public class LoginResponse {
     public String getRole() { return role; }
     public String getMessage() { return message; }
     public Boolean getSuccess() { return success; }
+    public Long getAgentId() { return agentId; }
 }

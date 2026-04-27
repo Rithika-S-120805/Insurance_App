@@ -3,11 +3,16 @@ package com.kgisl.pos.controller;
 import com.kgisl.pos.dto.LoginRequest;
 import com.kgisl.pos.dto.LoginResponse;
 import com.kgisl.pos.entity.User;
+import com.kgisl.pos.security.TokenProvider;
 import com.kgisl.pos.service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -15,60 +20,75 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private TokenProvider tokenProvider;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
     /**
-     * Login endpoint - Authenticates user credentials against USER table
+     * Login endpoint - Authenticates user credentials and returns JWT token
      * 
      * @param request LoginRequest containing email and password
-     * @return ResponseEntity with LoginResponse (user details if successful, error if failed)
+     * @return ResponseEntity with token and user details
      */
     @PostMapping("/login")
-public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-    try {
-        System.out.println("\n=== LOGIN REQUEST ===");
-        System.out.println("Email: " + request.getEmail());
-        System.out.println("Password: " + request.getPassword());
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        try {
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new LoginResponse("Email is required", false));
+            }
 
-        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new LoginResponse("Email is required", false));
-        }
+            if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new LoginResponse("Password is required", false));
+            }
 
-        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new LoginResponse("Password is required", false));
-        }
+            // Authenticate user credentials using Spring Security
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
 
-        // ✅ FIXED DEBUG
-        List<User> allUsers = userService.getAllUsers();
-        System.out.println("Total users in DB: " + allUsers.size());
-        allUsers.forEach(u -> System.out.println(
-                "Email: " + u.getEmail() +
-                " | Username: " + u.getUsername() +
-                " | Role: " + u.getRole()
-        ));
+            // Get authenticated user from database (Spring Security already verified credentials)
+            User user = userService.getUserByEmail(request.getEmail());
 
-        User authenticatedUser = userService.login(request.getEmail(), request.getPassword());
+            if (user != null) {
+                // Generate JWT token
+                String token = tokenProvider.generateTokenFromUsername(user.getEmail(), user.getRole().toString());
 
-        if (authenticatedUser != null) {
-            return ResponseEntity.ok(new LoginResponse(authenticatedUser, "Login successful", true));
-        } else {
+                // Return token and user details
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Login successful");
+                response.put("success", true);
+                response.put("token", token);
+                response.put("user", user);
+                response.put("role", user.getRole().toString());
+
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new LoginResponse("Invalid email or password", false));
+            }
+
+        } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new LoginResponse("Invalid email or password", false));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new LoginResponse("Server error", false));
         }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new LoginResponse("Server error", false));
     }
-}
 
     /**
      * Test endpoint - Returns all users in the database
@@ -78,10 +98,6 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request) {
     @GetMapping("/test")
     public ResponseEntity<?> test() {
         List<User> allUsers = userService.getAllUsers();
-        System.out.println("\n=== TEST ENDPOINT ===");
-        System.out.println("Total users in DB: " + allUsers.size());
-        allUsers.forEach(u -> System.out.println("  - " + u.getEmail() + " | Username: " + u.getUsername()));
-        
         Map<String, Object> response = new HashMap<>();
         response.put("total", allUsers.size());
         response.put("users", allUsers);
@@ -89,7 +105,7 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request) {
     }
 
     /**
-     * Get user by ID endpoint
+     * Get user by ID endpoint - Requires authentication
      * 
      * @param id User ID
      * @return ResponseEntity with user details
@@ -97,20 +113,9 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request) {
     @GetMapping("/user/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
         try {
-            System.out.println("\n=== GET USER BY ID ===");
-            System.out.println("Requested ID: " + id);
-            
-            // Debug: Show all users in DB
-            List<User> allUsers = userService.getAllUsers();
-            System.out.println("Total users in DB: " + allUsers.size());
-            allUsers.forEach(u -> System.out.println("  - ID: " + u.getUserId() + " | Email: " + u.getEmail()));
-            
             User user = userService.getUserById(id);
-            System.out.println("✅ User found: " + user.getEmail());
             return ResponseEntity.ok(user);
         } catch (RuntimeException e) {
-            System.out.println("❌ User not found for ID: " + id);
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new LoginResponse("User not found with ID: " + id, false));
         }
@@ -120,35 +125,42 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request) {
      * Register new user endpoint
      * 
      * @param user User object with registration details
-     * @return ResponseEntity with created user
+     * @return ResponseEntity with created user and token
      */
     @PostMapping("/register")
-public ResponseEntity<?> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody User user) {
 
-    if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
-        return ResponseEntity.badRequest()
-                .body(new LoginResponse("Email is required", false));
+        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(new LoginResponse("Email is required", false));
+        }
+
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(new LoginResponse("Username is required", false));
+        }
+
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(new LoginResponse("Password is required", false));
+        }
+
+        try {
+            User createdUser = userService.createUser(user);
+            
+            // Generate token for newly created user
+            String token = tokenProvider.generateTokenFromUsername(createdUser.getEmail(), createdUser.getRole().toString());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "User registered successfully");
+            response.put("success", true);
+            response.put("token", token);
+            response.put("user", createdUser);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new LoginResponse("Registration failed: " + e.getMessage(), false));
+        }
     }
-
-    if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
-        return ResponseEntity.badRequest()
-                .body(new LoginResponse("Username is required", false));
-    }
-
-    if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
-        return ResponseEntity.badRequest()
-                .body(new LoginResponse("Password is required", false));
-    }
-
-    // ❌ REMOVED isActive
-
-    try {
-        User createdUser = userService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new LoginResponse(createdUser, "User registered successfully", true));
-    } catch (Exception e) {
-        return ResponseEntity.badRequest()
-                .body(new LoginResponse("Registration failed", false));
-    }
-}
 }

@@ -129,4 +129,14 @@ public class ClaimServiceImpl implements ClaimService {
     public void deleteClaim(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public List<Claim> getClaimsByAgentId(Long agentId) {
+        return repository.findByAgent_UserId(agentId);
+    }
+
+    @Override
+    public List<Claim> getClaimsByCustomerId(Long customerId) {
+        return repository.findByPolicy_User_UserId(customerId);
+    }
 }

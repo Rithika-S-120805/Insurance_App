@@ -16,4 +16,8 @@ public interface ClaimService {
     Claim updateClaim(Long id, Claim claim);
 
     void deleteClaim(Long id);
+
+    List<Claim> getClaimsByAgentId(Long agentId);
+
+    List<Claim> getClaimsByCustomerId(Long customerId);
 }
