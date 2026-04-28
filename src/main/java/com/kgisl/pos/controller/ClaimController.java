@@ -44,8 +44,17 @@ public class ClaimController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<?> getAllClaims() {
+        System.out.println("[CLAIM-CONTROLLER] Fetching claims for authenticated user...");
+        System.out.println("[CLAIM-CONTROLLER] Total claims in database: " + service.getClaimsCount());
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            // Handle unauthenticated or anonymous users
+            if (authentication == null || !authentication.isAuthenticated() || 
+                authentication.getPrincipal().equals("anonymousUser")) {
+                return ResponseEntity.ok(List.of()); // Return empty list for anonymous users
+            }
+            
             String userEmail = authentication.getName();
             Optional<User> userOptional = userRepository.findByEmail(userEmail);
 
@@ -55,6 +64,8 @@ public class ClaimController {
             }
 
             User user = userOptional.get();
+            System.out.println("[CLAIM-CONTROLLER] Authenticated user: " + user.getEmail() + ", Role: " + user.getRole());
+            
             List<Claim> claims;
 
             // Admin sees all claims
@@ -72,7 +83,11 @@ public class ClaimController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "Invalid role"));
             }
-
+claims.forEach(claim -> {
+                System.out.println("[CLAIM-CONTROLLER] Claim ID: " + claim.getClaimId() + 
+                                   ", Policy User ID: " + (claim.getPolicy() != null && claim.getPolicy().getUser() != null ? claim.getPolicy().getUser().getUserId() : "null") + 
+                                   ", Agent ID: " + (claim.getAgent() != null ? claim.getAgent().getUserId() : "null"));
+            });
             return ResponseEntity.ok(claims);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -103,6 +118,12 @@ public class ClaimController {
             }
 
             Claim claim = claimOptional.get();
+
+            // Check if claim is soft-deleted
+            if (claim.getIsDeleted() != null && claim.getIsDeleted()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Claim not found"));
+            }
 
             // Admin can see all claims
             if (user.getRole() == User.Role.ADMIN) {
@@ -181,12 +202,25 @@ public class ClaimController {
         }
     }
 
-    // DELETE - Admin only
+    // DELETE - Admin only (Soft Delete)
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteClaim(@PathVariable Long id) {
         try {
-            service.deleteClaim(id);
+            service.softDeleteClaim(id);
+            return ResponseEntity.ok(Map.of("message", "Claim deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Failed to delete claim: " + e.getMessage()));
+        }
+    }
+
+    // PATCH - Soft Delete (alternative endpoint)
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> softDeleteClaim(@PathVariable Long id) {
+        try {
+            service.softDeleteClaim(id);
             return ResponseEntity.ok(Map.of("message", "Claim deleted successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

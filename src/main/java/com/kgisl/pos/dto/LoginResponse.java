@@ -19,7 +19,9 @@ public class LoginResponse {
         this.email = user.getEmail();
         this.fullName = user.getFullName();
         this.role = user.getRole() != null ? user.getRole().toString() : null;
-        this.agentId = user.getAgentId();
+        // For AGENT users, agentId should be their own userId
+        // For other users, use the agentId field if set
+        this.agentId = user.getRole() == User.Role.AGENT ? user.getUserId() : user.getAgentId();
         this.message = message;
         this.success = success;
     }

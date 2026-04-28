@@ -10,6 +10,7 @@ import com.kgisl.pos.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,7 +78,14 @@ public class ClaimServiceImpl implements ClaimService {
 
     @Override
     public List<Claim> getAllClaims() {
-        return repository.findAllWithRelationships();
+        System.out.println("[CLAIM-SERVICE] Fetching all claims with relationships...");
+        List<Claim> claims = repository.findAllWithRelationships();
+        claims.forEach(claim -> {
+            System.out.println("[CLAIM-SERVICE] Claim ID: " + claim.getClaimId() + 
+                               ", Policy User ID: " + (claim.getPolicy() != null && claim.getPolicy().getUser() != null ? claim.getPolicy().getUser().getUserId() : "null") + 
+                               ", Agent ID: " + (claim.getAgent() != null ? claim.getAgent().getUserId() : "null"));
+        });
+        return claims;
     }
 
     @Override
@@ -131,6 +139,15 @@ public class ClaimServiceImpl implements ClaimService {
     }
 
     @Override
+    public void softDeleteClaim(Long id) {
+        Claim claim = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Claim not found with id: " + id));
+        claim.setIsDeleted(true);
+        claim.setDeletedAt(LocalDateTime.now());
+        repository.save(claim);
+    }
+
+    @Override
     public List<Claim> getClaimsByAgentId(Long agentId) {
         return repository.findByAgent_UserId(agentId);
     }
@@ -138,5 +155,10 @@ public class ClaimServiceImpl implements ClaimService {
     @Override
     public List<Claim> getClaimsByCustomerId(Long customerId) {
         return repository.findByPolicy_User_UserId(customerId);
+    }
+
+    @Override
+    public long getClaimsCount() {
+        return repository.count();
     }
 }

@@ -69,6 +69,12 @@ public class Claim {
     @Column(name = "updated_date")
     private LocalDateTime updatedDate;
 
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     // Constructors
     public Claim() {}
 
@@ -114,6 +120,12 @@ public class Claim {
     
     public LocalDateTime getUpdatedDate() { return updatedDate; }
     public void setUpdatedDate(LocalDateTime updatedDate) { this.updatedDate = updatedDate; }
+
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     
     // For serialization and deserialization of policy_id
     @JsonProperty("policy_id")

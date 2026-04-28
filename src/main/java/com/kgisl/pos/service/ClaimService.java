@@ -17,7 +17,11 @@ public interface ClaimService {
 
     void deleteClaim(Long id);
 
+    void softDeleteClaim(Long id);
+
     List<Claim> getClaimsByAgentId(Long agentId);
 
     List<Claim> getClaimsByCustomerId(Long customerId);
+
+    long getClaimsCount();
 }

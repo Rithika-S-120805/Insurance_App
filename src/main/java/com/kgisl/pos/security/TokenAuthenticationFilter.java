@@ -58,6 +58,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                         
                         logger.debug("[AUTH-FILTER] ✅ Authentication set for user: " + username + " with authority: " + role);
+                        System.out.println("[AUTH-FILTER] ✅ Authentication set for user: " + username + " with authority: " + role);
                     } else {
                         logger.warn("[AUTH-FILTER] ⚠️ Role is null or empty for token of user: " + username);
                     }

@@ -22,9 +22,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -55,6 +58,7 @@ public class DashboardController {
      * ADMIN DASHBOARD - Get complete system analytics
      * Only ADMIN can access
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin")
     public ResponseEntity<?> getAdminDashboard() {
         try {
@@ -121,24 +125,33 @@ public class DashboardController {
             Map<String, Object> dashboard = new HashMap<>();
 
             // Get agent's assigned policies
-            List<Policy> agentPolicies = policyRepository.findByAgent_UserId(agentId);
+            List<Policy> agentPolicies = policyService.getPoliciesByAgentId(agentId);
             long totalPolicies = agentPolicies.size();
 
             // Get unique customers assigned to this agent
-            long totalCustomers = agentPolicies.stream()
-                    .map(p -> p.getUser().getUserId())
-                    .distinct()
-                    .count();
+            List<User> agentCustomers = agentPolicies.stream()
+                    .map(Policy::getUser)
+                    .filter(Objects::nonNull)
+                    .filter(user -> user.getUserId() != null)
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toMap(User::getUserId, user -> user, (existing, duplicate) -> existing, LinkedHashMap::new),
+                            customerMap -> List.copyOf(customerMap.values())));
 
             // Get claims for agent's policies
-            List<Claim> agentClaims = claimRepository.findByAgent_UserId(agentId);
+            List<Claim> agentClaims = claimService.getClaimsByAgentId(agentId);
+
+            // Get payments tied to the agent's policies
+            List<Payment> agentPayments = paymentService.getPaymentsByAgentId(agentId);
 
             dashboard.put("agentInfo", agent);
             dashboard.put("totalAssignedPolicies", totalPolicies);
-            dashboard.put("totalAssignedCustomers", totalCustomers);
+            dashboard.put("totalAssignedCustomers", agentCustomers.size());
             dashboard.put("totalClaims", agentClaims.size());
+            dashboard.put("totalPayments", agentPayments.size());
             dashboard.put("policies", agentPolicies);
+            dashboard.put("customers", agentCustomers);
             dashboard.put("claims", agentClaims);
+            dashboard.put("payments", agentPayments);
 
             return ResponseEntity.ok(dashboard);
         } catch (Exception e) {
@@ -202,36 +215,57 @@ public class DashboardController {
 
     /**
      * AGENT - Get list of customers assigned to agent
-     * Only AGENT can access
+     * ADMIN or AGENT can access (admin can view any, agent only their own)
      */
-    @PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('AGENT')")
     @GetMapping("/agent/customers")
-    public ResponseEntity<?> getAgentCustomers() {
+    public ResponseEntity<?> getAgentCustomers(@RequestParam(required = false) Long agentId) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String agentEmail = authentication.getName();
+            String userEmail = authentication.getName();
 
-            Optional<User> agentOptional = userRepository.findByEmail(agentEmail);
-            if (agentOptional.isEmpty()) {
+            Optional<User> userOptional = userRepository.findByEmail(userEmail);
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "User not found"));
+            }
+
+            User authenticatedUser = userOptional.get();
+            Long effectiveAgentId = authenticatedUser.getRole() == User.Role.AGENT
+                    ? authenticatedUser.getUserId()
+                    : agentId;
+
+            if (effectiveAgentId == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "agentId is required for admin requests"));
+            }
+
+            // Check if agent exists
+            Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
+            if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Agent not found"));
             }
 
-            User agent = agentOptional.get();
-            Long agentId = agent.getUserId();
-
             // Get unique customers from agent's policies
-            List<Policy> agentPolicies = policyRepository.findByAgent_UserId(agentId);
+            List<Policy> agentPolicies = policyRepository.findByAgent_UserId(effectiveAgentId);
             List<User> customers = agentPolicies.stream()
                     .map(Policy::getUser)
-                    .distinct()
-                    .toList();
+                    .filter(Objects::nonNull)
+                    .filter(customer -> customer.getUserId() != null)
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toMap(User::getUserId, customer -> customer, (existing, duplicate) -> existing, LinkedHashMap::new),
+                            customerMap -> List.copyOf(customerMap.values())));
+                // If the authenticated user is the agent, return the array directly (frontend expects an array)
+                if (authenticatedUser.getRole() == User.Role.AGENT) {
+                return ResponseEntity.ok(customers);
+                }
 
-            return ResponseEntity.ok(Map.of(
-                    "agentId", agentId,
+                return ResponseEntity.ok(Map.of(
+                    "agentId", effectiveAgentId,
                     "totalCustomers", customers.size(),
                     "customers", customers
-            ));
+                ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch customers: " + e.getMessage()));
@@ -338,31 +372,51 @@ public class DashboardController {
     }
 
     /**
-     * AGENT - Get own assigned policies only
+     * AGENT - Get assigned policies for agent
+     * ADMIN or AGENT can access (admin can view any, agent only their own)
      */
-    @PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('AGENT')")
     @GetMapping("/agent/policies")
-    public ResponseEntity<?> getAgentPolicies() {
+    public ResponseEntity<?> getAgentPolicies(@RequestParam(required = false) Long agentId) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String agentEmail = authentication.getName();
+            String userEmail = authentication.getName();
 
-            Optional<User> agentOptional = userRepository.findByEmail(agentEmail);
-            if (agentOptional.isEmpty()) {
+            Optional<User> userOptional = userRepository.findByEmail(userEmail);
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "User not found"));
+            }
+
+            User authenticatedUser = userOptional.get();
+            Long effectiveAgentId = authenticatedUser.getRole() == User.Role.AGENT
+                    ? authenticatedUser.getUserId()
+                    : agentId;
+
+            if (effectiveAgentId == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "agentId is required for admin requests"));
+            }
+
+            // Check if agent exists
+            Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
+            if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Agent not found"));
             }
 
-            User agent = agentOptional.get();
-            Long agentId = agent.getUserId();
+            List<Policy> policies = policyRepository.findByAgent_UserId(effectiveAgentId);
 
-            List<Policy> policies = policyRepository.findByAgent_UserId(agentId);
+                // Agents expect an array response for policies
+                if (authenticatedUser.getRole() == User.Role.AGENT) {
+                    return ResponseEntity.ok(policies);
+                }
 
-            return ResponseEntity.ok(Map.of(
-                    "agentId", agentId,
-                    "totalPolicies", policies.size(),
-                    "policies", policies
-            ));
+                return ResponseEntity.ok(Map.of(
+                        "agentId", effectiveAgentId,
+                        "totalPolicies", policies.size(),
+                        "policies", policies
+                ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch policies: " + e.getMessage()));
@@ -370,31 +424,51 @@ public class DashboardController {
     }
 
     /**
-     * AGENT - Get own assigned claims only
+     * AGENT - Get assigned claims for agent
+     * ADMIN or AGENT can access (admin can view any, agent only their own)
      */
-    @PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('AGENT')")
     @GetMapping("/agent/claims")
-    public ResponseEntity<?> getAgentClaims() {
+    public ResponseEntity<?> getAgentClaims(@RequestParam(required = false) Long agentId) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String agentEmail = authentication.getName();
+            String userEmail = authentication.getName();
 
-            Optional<User> agentOptional = userRepository.findByEmail(agentEmail);
-            if (agentOptional.isEmpty()) {
+            Optional<User> userOptional = userRepository.findByEmail(userEmail);
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "User not found"));
+            }
+
+            User authenticatedUser = userOptional.get();
+            Long effectiveAgentId = authenticatedUser.getRole() == User.Role.AGENT
+                    ? authenticatedUser.getUserId()
+                    : agentId;
+
+            if (effectiveAgentId == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "agentId is required for admin requests"));
+            }
+
+            // Check if agent exists
+            Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
+            if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Agent not found"));
             }
 
-            User agent = agentOptional.get();
-            Long agentId = agent.getUserId();
+            List<Claim> claims = claimRepository.findByAgent_UserId(effectiveAgentId);
 
-            List<Claim> claims = claimRepository.findByAgent_UserId(agentId);
+                // Agents expect an array response for claims
+                if (authenticatedUser.getRole() == User.Role.AGENT) {
+                    return ResponseEntity.ok(claims);
+                }
 
-            return ResponseEntity.ok(Map.of(
-                    "agentId", agentId,
-                    "totalClaims", claims.size(),
-                    "claims", claims
-            ));
+                return ResponseEntity.ok(Map.of(
+                        "agentId", effectiveAgentId,
+                        "totalClaims", claims.size(),
+                        "claims", claims
+                ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch claims: " + e.getMessage()));

@@ -3,7 +3,6 @@ package com.kgisl.pos.entity;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -40,21 +39,21 @@ public class Policy {
     @Column(nullable = false)
     private String coverageType;
     
-    @Column(nullable = false)
-    private Double premiumAmount;
-    
     @Column(name = "policy_type")
     private String policyType;
 
     @Column(nullable = false)
-    private LocalDate startDate;
-    
-    @Column(nullable = false)
-    private LocalDate endDate;
-
-    @Column(nullable = false)
     private String status;
-    
+
+    @Column(name = "premium_amount")
+    private Double premiumAmount;
+
+    @Column(name = "start_date", nullable = false)
+    private String startDate;
+
+    @Column(name = "end_date", nullable = false)
+    private String endDate;
+
     @Column(name = "sum_insured")
     private Double sumInsured;
     
@@ -113,6 +112,14 @@ public class Policy {
         this.coverageType = coverageType;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public Double getPremiumAmount() {
         return premiumAmount;
     }
@@ -121,30 +128,22 @@ public class Policy {
         this.premiumAmount = premiumAmount;
     }
 
-    public LocalDate getStartDate() {
+    public String getStartDate() {
         return startDate;
     }
 
-    public void setStartDate(LocalDate startDate) {
+    public void setStartDate(String startDate) {
         this.startDate = startDate;
     }
 
-    public LocalDate getEndDate() {
+    public String getEndDate() {
         return endDate;
     }
 
-    public void setEndDate(LocalDate endDate) {
+    public void setEndDate(String endDate) {
         this.endDate = endDate;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-    
     public String getPolicyType() {
         return policyType;
     }

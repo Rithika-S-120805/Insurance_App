@@ -37,20 +37,28 @@ public class PaymentServiceImpl implements PaymentService {
                     .orElseThrow(() -> new RuntimeException("Policy not found with id: " + payment.getPolicy().getPolicyId()));
             payment.setPolicy(policy);
         }
-        
+
         // Handle claim_id from transient field (from JSON input)
         if (payment.getClaim_id() != null && payment.getClaim_id() > 0) {
             Claim claim = claimRepository.findById(payment.getClaim_id())
                     .orElseThrow(() -> new RuntimeException("Claim not found with id: " + payment.getClaim_id()));
+            // Check if claim is soft-deleted
+            if (claim.getIsDeleted() != null && claim.getIsDeleted()) {
+                throw new RuntimeException("Cannot create payment for a deleted claim");
+            }
             payment.setClaim(claim);
         }
         // If payment has a claim object (from nested JSON), verify it exists
         else if (payment.getClaim() != null && payment.getClaim().getClaimId() != null) {
             Claim claim = claimRepository.findById(payment.getClaim().getClaimId())
                     .orElseThrow(() -> new RuntimeException("Claim not found with id: " + payment.getClaim().getClaimId()));
+            // Check if claim is soft-deleted
+            if (claim.getIsDeleted() != null && claim.getIsDeleted()) {
+                throw new RuntimeException("Cannot create payment for a deleted claim");
+            }
             payment.setClaim(claim);
         }
-        
+
         return paymentRepository.save(payment);
     }
 
@@ -70,7 +78,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (existing != null) {
             existing.setPaymentReference(payment.getPaymentReference());
-            
+
             // Handle policy_id from transient field (from JSON input)
             if (payment.getPolicy_id() != null && payment.getPolicy_id() > 0) {
                 Policy policy = policyRepository.findById(payment.getPolicy_id())
@@ -83,20 +91,28 @@ public class PaymentServiceImpl implements PaymentService {
                         .orElseThrow(() -> new RuntimeException("Policy not found with id: " + payment.getPolicy().getPolicyId()));
                 existing.setPolicy(policy);
             }
-            
+
             // Handle claim_id from transient field (from JSON input)
             if (payment.getClaim_id() != null && payment.getClaim_id() > 0) {
                 Claim claim = claimRepository.findById(payment.getClaim_id())
                         .orElseThrow(() -> new RuntimeException("Claim not found with id: " + payment.getClaim_id()));
+                // Check if claim is soft-deleted
+                if (claim.getIsDeleted() != null && claim.getIsDeleted()) {
+                    throw new RuntimeException("Cannot create payment for a deleted claim");
+                }
                 existing.setClaim(claim);
             }
             // If payment has a claim object (from nested JSON), verify it exists
             else if (payment.getClaim() != null && payment.getClaim().getClaimId() != null) {
                 Claim claim = claimRepository.findById(payment.getClaim().getClaimId())
                         .orElseThrow(() -> new RuntimeException("Claim not found with id: " + payment.getClaim().getClaimId()));
+                // Check if claim is soft-deleted
+                if (claim.getIsDeleted() != null && claim.getIsDeleted()) {
+                    throw new RuntimeException("Cannot create payment for a deleted claim");
+                }
                 existing.setClaim(claim);
             }
-            
+
             existing.setPaymentType(payment.getPaymentType());
             existing.setAmount(payment.getAmount());
             existing.setPaymentMethod(payment.getPaymentMethod());

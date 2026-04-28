@@ -1,7 +1,9 @@
 package com.kgisl.pos.service;
 
+import com.kgisl.pos.entity.Claim;
 import com.kgisl.pos.entity.Policy;
 import com.kgisl.pos.entity.User;
+import com.kgisl.pos.repository.ClaimRepository;
 import com.kgisl.pos.repository.PolicyRepository;
 import com.kgisl.pos.repository.UserRepository;
 // import com.kgisl.pos.service.PolicyService;
@@ -17,9 +19,12 @@ public class PolicyServiceImpl implements PolicyService {
 
     @Autowired
     private PolicyRepository repository;
-    
+
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ClaimRepository claimRepository;
 
     @Override
     public Policy savePolicy(Policy policy) {
@@ -95,11 +100,11 @@ public class PolicyServiceImpl implements PolicyService {
         }
         
         policy.setCoverageType(policyDetails.getCoverageType());
-        policy.setPremiumAmount(policyDetails.getPremiumAmount());
         policy.setPolicyType(policyDetails.getPolicyType());
+        policy.setStatus(policyDetails.getStatus());
+        policy.setPremiumAmount(policyDetails.getPremiumAmount());
         policy.setStartDate(policyDetails.getStartDate());
         policy.setEndDate(policyDetails.getEndDate());
-        policy.setStatus(policyDetails.getStatus());
         policy.setSumInsured(policyDetails.getSumInsured());
         policy.setTermInMonths(policyDetails.getTermInMonths());
 
@@ -108,6 +113,11 @@ public class PolicyServiceImpl implements PolicyService {
 
     @Override
     public void deletePolicy(Long id) {
+        // Check if there are any claims associated with this policy
+        List<Claim> relatedClaims = claimRepository.findByPolicy_PolicyId(id);
+        if (!relatedClaims.isEmpty()) {
+            throw new IllegalArgumentException("Cannot delete policy with ID " + id + " because it has " + relatedClaims.size() + " associated claim(s). Please delete the claims first.");
+        }
         repository.deleteById(id);
     }
 
