@@ -170,12 +170,54 @@ public class UserController {
     }
 
     /**
-     * Update user - Admin only
+     * Update user - Admin or Agent (agents can update CUSTOMER only)
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User user) {
         try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Authentication required"));
+            }
+
+            User authenticatedUser = userService.getUserByEmail(authentication.getName());
+            if (authenticatedUser == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Authenticated user not found"));
+            }
+
+            if (authenticatedUser.getRole() != User.Role.ADMIN && authenticatedUser.getRole() != User.Role.AGENT) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only ADMIN or AGENT users can update accounts"));
+            }
+
+            User targetUser = userService.getUserById(id);
+
+            // Agents can only update CUSTOMER accounts within their scope.
+            if (authenticatedUser.getRole() == User.Role.AGENT) {
+                if (targetUser.getRole() != User.Role.CUSTOMER) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "Agents can only update CUSTOMER accounts"));
+                }
+
+                if (user.getRole() != null && user.getRole() != User.Role.CUSTOMER) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "Agents cannot change role to non-CUSTOMER"));
+                }
+
+                Long agentKey = authenticatedUser.getAgentId() != null ? authenticatedUser.getAgentId() : authenticatedUser.getUserId();
+                if (targetUser.getAgentId() != null && !Objects.equals(targetUser.getAgentId(), agentKey)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "Access denied. Customer not assigned to this agent"));
+                }
+
+                user.setRole(User.Role.CUSTOMER);
+                user.setAgentId(agentKey);
+            }
+
             User updatedUser = userService.updateUser(id, user);
             return ResponseEntity.ok(updatedUser);
         } catch (RuntimeException e) {

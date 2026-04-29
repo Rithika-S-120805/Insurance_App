@@ -26,66 +26,61 @@ public class TokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
+    // Normalize role safely
+    private String normalizeRole(String role) {
+        if (role == null) return "ROLE_USER";
+        role = role.trim().toUpperCase();
+
+        if (role.startsWith("ROLE_")) {
+            return role;
+        }
+        return "ROLE_" + role;
+    }
+
     public String generateToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+
         String role = userPrincipal.getAuthorities().stream()
                 .map(auth -> auth.getAuthority())
                 .findFirst()
                 .orElse("ROLE_USER");
 
-        // Ensure role has ROLE_ prefix
-        if (!role.startsWith("ROLE_")) {
-            role = "ROLE_" + role;
-        }
+        role = normalizeRole(role);
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
-        String token = Jwts.builder()
+        return Jwts.builder()
                 .subject(userPrincipal.getUsername())
-                .claim("role", role)
+                .claim("role", role.replace("ROLE_", ""))
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
-        
-        System.out.println("[TOKEN-PROVIDER] Generated token for user: " + userPrincipal.getUsername() + " with role: " + role);
-        return token;
     }
 
     public String generateTokenFromUsername(String username, String role) {
-        System.out.println("[TOKEN-PROVIDER] generateTokenFromUsername - Input: username=" + username + ", role=" + role);
-        
+
+        role = normalizeRole(role);
+
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
-        // Ensure role has ROLE_ prefix for Spring Security
-        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        
-        System.out.println("[TOKEN-PROVIDER] Role with prefix: " + roleWithPrefix);
-
-        String token = Jwts.builder()
+        return Jwts.builder()
                 .subject(username)
-                .claim("role", roleWithPrefix)
+                .claim("role", role.replace("ROLE_", ""))
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
-        
-        System.out.println("[TOKEN-PROVIDER] Token generated successfully for: " + username);
-        return token;
     }
 
     public String getUsernameFromToken(String token) {
-        Claims claims = getAllClaimsFromToken(token);
-        return claims.getSubject();
+        return getAllClaimsFromToken(token).getSubject();
     }
 
     public String getRoleFromToken(String token) {
-        Claims claims = getAllClaimsFromToken(token);
-        String role = (String) claims.get("role");
-        System.out.println("[TOKEN-PROVIDER] Retrieved role from token: " + role);
-        return role;
+        return (String) getAllClaimsFromToken(token).get("role");
     }
 
     public boolean validateToken(String token) {
@@ -94,10 +89,8 @@ public class TokenProvider {
                     .verifyWith(getSigningKey())
                     .build()
                     .parseSignedClaims(token);
-            System.out.println("[TOKEN-PROVIDER] Token validation successful");
             return true;
         } catch (Exception ex) {
-            System.out.println("[TOKEN-PROVIDER] Token validation failed: " + ex.getMessage());
             return false;
         }
     }
