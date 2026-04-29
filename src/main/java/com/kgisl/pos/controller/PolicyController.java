@@ -82,9 +82,10 @@ public class PolicyController {
             }
             // Agent sees only their assigned policies
             else if (user.getRole() == User.Role.AGENT) {
-                System.out.println("[POLICY-CONTROLLER] Getting policies for AGENT: " + user.getUserId());
-                policies = service.getPoliciesByAgentId(user.getUserId());
-                System.out.println("[POLICY-CONTROLLER] Found " + policies.size() + " policies for agent");
+                Long agentScopeId = user.getAgentId() != null ? user.getAgentId() : user.getUserId();
+                System.out.println("[POLICY-CONTROLLER] Getting policies for AGENT scope id: " + agentScopeId);
+                policies = service.getPoliciesByAgentId(agentScopeId);
+                System.out.println("[POLICY-CONTROLLER] Found " + policies.size() + " policies for agent scope");
             }
             // Customer sees only their own policies
             else if (user.getRole() == User.Role.CUSTOMER) {

@@ -2,6 +2,7 @@ package com.kgisl.pos.entity;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonProperty.Access;
 
@@ -33,6 +34,7 @@ public class User {
     private Role role;
 
     @Column(name = "agent_id")
+    @JsonAlias({"agent_id", "agentId"})
     private Long agentId;
 
     public enum Role {

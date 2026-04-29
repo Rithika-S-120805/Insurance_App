@@ -120,7 +120,7 @@ public class DashboardController {
             }
 
             User agent = agentOptional.get();
-            Long agentId = agent.getUserId();
+            Long agentId = resolveAgentScopeId(agent);
 
             Map<String, Object> dashboard = new HashMap<>();
 
@@ -232,7 +232,7 @@ public class DashboardController {
 
             User authenticatedUser = userOptional.get();
             Long effectiveAgentId = authenticatedUser.getRole() == User.Role.AGENT
-                    ? authenticatedUser.getUserId()
+                    ? resolveAgentScopeId(authenticatedUser)
                     : agentId;
 
             if (effectiveAgentId == null) {
@@ -240,11 +240,13 @@ public class DashboardController {
                         .body(Map.of("error", "agentId is required for admin requests"));
             }
 
-            // Check if agent exists
-            Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
-            if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "Agent not found"));
+            // For admin requests, validate target agent; AGENT requests use authenticated scope id directly.
+            if (authenticatedUser.getRole() == User.Role.ADMIN) {
+                Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
+                if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", "Agent not found"));
+                }
             }
 
             // Get unique customers from agent's policies
@@ -390,7 +392,7 @@ public class DashboardController {
 
             User authenticatedUser = userOptional.get();
             Long effectiveAgentId = authenticatedUser.getRole() == User.Role.AGENT
-                    ? authenticatedUser.getUserId()
+                    ? resolveAgentScopeId(authenticatedUser)
                     : agentId;
 
             if (effectiveAgentId == null) {
@@ -398,11 +400,13 @@ public class DashboardController {
                         .body(Map.of("error", "agentId is required for admin requests"));
             }
 
-            // Check if agent exists
-            Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
-            if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "Agent not found"));
+            // For admin requests, validate target agent; AGENT requests use authenticated scope id directly.
+            if (authenticatedUser.getRole() == User.Role.ADMIN) {
+                Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
+                if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", "Agent not found"));
+                }
             }
 
             List<Policy> policies = policyRepository.findByAgent_UserId(effectiveAgentId);
@@ -442,7 +446,7 @@ public class DashboardController {
 
             User authenticatedUser = userOptional.get();
             Long effectiveAgentId = authenticatedUser.getRole() == User.Role.AGENT
-                    ? authenticatedUser.getUserId()
+                    ? resolveAgentScopeId(authenticatedUser)
                     : agentId;
 
             if (effectiveAgentId == null) {
@@ -450,11 +454,13 @@ public class DashboardController {
                         .body(Map.of("error", "agentId is required for admin requests"));
             }
 
-            // Check if agent exists
-            Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
-            if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "Agent not found"));
+            // For admin requests, validate target agent; AGENT requests use authenticated scope id directly.
+            if (authenticatedUser.getRole() == User.Role.ADMIN) {
+                Optional<User> agentOptional = userRepository.findById(effectiveAgentId);
+                if (agentOptional.isEmpty() || agentOptional.get().getRole() != User.Role.AGENT) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", "Agent not found"));
+                }
             }
 
             List<Claim> claims = claimRepository.findByAgent_UserId(effectiveAgentId);
@@ -473,5 +479,12 @@ public class DashboardController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch claims: " + e.getMessage()));
         }
+    }
+
+    private Long resolveAgentScopeId(User user) {
+        if (user == null) {
+            return null;
+        }
+        return user.getAgentId() != null ? user.getAgentId() : user.getUserId();
     }
 }

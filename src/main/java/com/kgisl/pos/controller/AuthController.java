@@ -66,13 +66,15 @@ public class AuthController {
                 // Generate JWT token
                 String token = tokenProvider.generateTokenFromUsername(user.getEmail(), user.getRole().toString());
 
+                User normalizedUser = normalizeUserForFrontend(user);
+
                 // Return token and user details
                 Map<String, Object> response = new HashMap<>();
                 response.put("message", "Login successful");
                 response.put("success", true);
                 response.put("token", token);
-                response.put("user", user);
-                response.put("role", user.getRole().toString());
+                response.put("user", normalizedUser);
+                response.put("role", normalizedUser.getRole().toString());
 
                 return ResponseEntity.ok(response);
             } else {
@@ -147,6 +149,7 @@ public class AuthController {
 
         try {
             User createdUser = userService.createUser(user);
+            User normalizedUser = normalizeUserForFrontend(createdUser);
             
             // Generate token for newly created user
             String token = tokenProvider.generateTokenFromUsername(createdUser.getEmail(), createdUser.getRole().toString());
@@ -155,12 +158,19 @@ public class AuthController {
             response.put("message", "User registered successfully");
             response.put("success", true);
             response.put("token", token);
-            response.put("user", createdUser);
+            response.put("user", normalizedUser);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new LoginResponse("Registration failed: " + e.getMessage(), false));
         }
+    }
+
+    private User normalizeUserForFrontend(User user) {
+        if (user != null && user.getRole() == User.Role.AGENT && user.getAgentId() == null && user.getUserId() != null) {
+            user.setAgentId(user.getUserId());
+        }
+        return user;
     }
 }

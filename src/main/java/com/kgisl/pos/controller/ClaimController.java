@@ -74,7 +74,8 @@ public class ClaimController {
             }
             // Agent sees only their assigned claims
             else if (user.getRole() == User.Role.AGENT) {
-                claims = service.getClaimsByAgentId(user.getUserId());
+                Long agentScopeId = user.getAgentId() != null ? user.getAgentId() : user.getUserId();
+                claims = service.getClaimsByAgentId(agentScopeId);
             }
             // Customer sees only their own claims
             else if (user.getRole() == User.Role.CUSTOMER) {

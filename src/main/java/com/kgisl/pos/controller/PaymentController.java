@@ -62,7 +62,8 @@ public class PaymentController {
             }
             // Agent sees payments for their assigned policies
             else if (user.getRole() == User.Role.AGENT) {
-                payments = paymentService.getPaymentsByAgentId(user.getUserId());
+                Long agentScopeId = user.getAgentId() != null ? user.getAgentId() : user.getUserId();
+                payments = paymentService.getPaymentsByAgentId(agentScopeId);
             }
             // Customer sees only their own payments
             else if (user.getRole() == User.Role.CUSTOMER) {

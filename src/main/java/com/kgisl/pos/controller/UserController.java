@@ -3,6 +3,8 @@ package com.kgisl.pos.controller;
 import com.kgisl.pos.dto.LoginRequest;
 import com.kgisl.pos.dto.LoginResponse;
 import com.kgisl.pos.entity.User;
+import com.kgisl.pos.entity.Policy;
+import com.kgisl.pos.repository.PolicyRepository;
 import com.kgisl.pos.service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +17,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping({"/api/users", "/api/admin/users"})
 public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private PolicyRepository policyRepository;
 
     /**
      * Login endpoint (moved to AuthController but kept for backward compatibility)
@@ -35,6 +42,7 @@ public class UserController {
     /**
      * Get all users - Admin only
      */
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<?> getAllUsers() {
         try {
@@ -47,8 +55,45 @@ public class UserController {
                 return ResponseEntity.ok(List.of()); // Return empty list for anonymous users
             }
             
+            User authenticatedUser = userService.getUserByEmail(authentication.getName());
+            if (authenticatedUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Authenticated user not found"));
+            }
+
             List<User> users = userService.getAllUsers();
-            return ResponseEntity.ok(users);
+
+            // Keep database agentId when present; only fallback to userId for legacy/null agent mappings.
+            users.forEach(user -> {
+                if (user.getRole() == User.Role.AGENT && user.getAgentId() == null && user.getUserId() != null) {
+                    user.setAgentId(user.getUserId());
+                }
+            });
+
+            if (authenticatedUser.getRole() == User.Role.ADMIN) {
+                return ResponseEntity.ok(users);
+            }
+
+            if (authenticatedUser.getRole() == User.Role.AGENT) {
+                Long agentKey = authenticatedUser.getAgentId() != null ? authenticatedUser.getAgentId() : authenticatedUser.getUserId();
+                List<User> assignedCustomers = policyRepository.findByAgent_UserId(agentKey).stream()
+                        .map(Policy::getUser)
+                        .filter(Objects::nonNull)
+                        .filter(user -> user.getRole() == User.Role.CUSTOMER)
+                        .filter(user -> user.getUserId() != null)
+                        .collect(Collectors.collectingAndThen(
+                                Collectors.toMap(User::getUserId, user -> user, (existing, duplicate) -> existing),
+                                customerMap -> List.copyOf(customerMap.values())));
+                return ResponseEntity.ok(assignedCustomers);
+            }
+
+            if (authenticatedUser.getRole() == User.Role.CUSTOMER) {
+                return ResponseEntity.ok(users.stream()
+                        .filter(user -> Objects.equals(user.getUserId(), authenticatedUser.getUserId()))
+                        .collect(Collectors.toList()));
+            }
+
+            return ResponseEntity.ok(List.of());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error retrieving users: " + e.getMessage()));
@@ -58,10 +103,42 @@ public class UserController {
     /**
      * Create new user - Admin only
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping
     public ResponseEntity<?> createUser(@RequestBody User user) {
         try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Authentication required"));
+            }
+
+                User authenticatedUser = userService.getUserByEmail(authentication.getName());
+
+                if (authenticatedUser == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Authenticated user not found"));
+            }
+
+            if (authenticatedUser.getRole() != User.Role.ADMIN && authenticatedUser.getRole() != User.Role.AGENT) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only ADMIN or AGENT users can create accounts"));
+            }
+
+            if (authenticatedUser.getRole() == User.Role.AGENT && user.getRole() != null && user.getRole() != User.Role.CUSTOMER) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Agents can only create CUSTOMER accounts"));
+            }
+
+            if (authenticatedUser.getRole() == User.Role.AGENT) {
+                Long agentKey = authenticatedUser.getAgentId() != null ? authenticatedUser.getAgentId() : authenticatedUser.getUserId();
+                user.setAgentId(agentKey);
+                if (user.getRole() == null) {
+                    user.setRole(User.Role.CUSTOMER);
+                }
+            }
+
             User createdUser = userService.createUser(user);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
         } catch (RuntimeException e) {
