@@ -37,6 +37,15 @@ public class Payment {
     @Transient
     private Long claim_id;
 
+    // Link to User (Customer)
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    // Transient field for deserializing user_id from JSON
+    @Transient
+    private Long user_id;
+
     @Column(nullable = false)
     private String paymentType;
     
@@ -81,6 +90,9 @@ public class Payment {
 
     public Claim getClaim() { return claim; }
     public void setClaim(Claim claim) { this.claim = claim; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
     public String getPaymentType() { return paymentType; }
     public void setPaymentType(String paymentType) { this.paymentType = paymentType; }
@@ -140,5 +152,20 @@ public class Payment {
     @JsonProperty("claim_id")
     public void setClaim_id(Long claim_id) {
         this.claim_id = claim_id;
+    }
+    
+    // For serialization and deserialization of user_id
+    @JsonProperty("user_id")
+    public Long getUser_id() {
+        // Return user_id from the User relationship if it exists, otherwise return the transient field
+        if (user != null && user.getUserId() != null) {
+            return user.getUserId();
+        }
+        return user_id;
+    }
+    
+    @JsonProperty("user_id")
+    public void setUser_id(Long user_id) {
+        this.user_id = user_id;
     }
 }

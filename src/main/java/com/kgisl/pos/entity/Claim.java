@@ -34,6 +34,15 @@ public class Claim {
     @Transient
     private Long agent_id;
 
+    // Link to User (Customer)
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    // Transient field for deserializing user_id from JSON
+    @Transient
+    private Long user_id;
+
     @Column(name = "claim_number", unique = true, nullable = false)
     private String claimNumber;
 
@@ -87,6 +96,9 @@ public class Claim {
 
     public User getAgent() { return agent; }
     public void setAgent(User agent) { this.agent = agent; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
     public LocalDate getDateFiled() { return dateFiled; }
     public void setDateFiled(LocalDate dateFiled) { this.dateFiled = dateFiled; }
@@ -155,5 +167,20 @@ public class Claim {
     @JsonProperty("agent_id")
     public void setAgent_id(Long agent_id) {
         this.agent_id = agent_id;
+    }
+    
+    // For serialization and deserialization of user_id
+    @JsonProperty("user_id")
+    public Long getUser_id() {
+        // Return user_id from the User relationship if it exists, otherwise return the transient field
+        if (user != null && user.getUserId() != null) {
+            return user.getUserId();
+        }
+        return user_id;
+    }
+    
+    @JsonProperty("user_id")
+    public void setUser_id(Long user_id) {
+        this.user_id = user_id;
     }
 }
